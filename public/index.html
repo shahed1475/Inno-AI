@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inno-AI: Ingredient Compliance Platform</title>
+<meta name="description" content="Check food ingredient lists against EU and US additive rules, scan labels, get substitution ideas and ask a regulatory assistant. Runs on Cloudflare Workers and D1.">
+<meta name="theme-color" content="#0f766e">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top">
+  <div class="wrap bar">
+    <a class="brand" href="/#checker" aria-label="Inno-AI home">
+      <img src="/favicon.svg" alt="" width="30" height="30"><span>Inno-AI</span><em>Compliance Platform</em>
+    </a>
+    <nav id="nav" aria-label="Sections">
+      <a href="/#checker" data-tab="checker">Checker</a>
+      <a href="/#batch" data-tab="batch">Batch</a>
+      <a href="/#assistant" data-tab="assistant">Assistant</a>
+      <a href="/#database" data-tab="database">Database</a>
+      <a href="/#dashboard" data-tab="dashboard">Dashboard</a>
+    </nav>
+    <a class="gh" href="https://github.com/shahed1475/Inno-AI" target="_blank" rel="noopener">GitHub</a>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+  <section class="hero">
+    <h1>Know which additives you can ship, before you ship.</h1>
+    <p>Real-time EU and US compliance checks, label scanning, substitution ideas and an AI regulatory assistant.</p>
+  </section>
+
+  <!-- Checker -->
+  <section id="tab-checker" class="tab" hidden>
+    <div class="card">
+      <div id="report-banner" class="notice" hidden></div>
+      <div class="field-head">
+        <label for="ing">Ingredient list <small>names or E-numbers, comma separated</small></label>
+        <div class="tools">
+          <button class="btn ghost sm" id="example">Try an example</button>
+          <label class="btn ghost sm" for="scan-file">Scan a label photo</label>
+          <input id="scan-file" type="file" accept="image/*" hidden>
+        </div>
+      </div>
+      <textarea id="ing" rows="5" spellcheck="false" placeholder="Wheat flour, sugar, titanium dioxide (E171), tartrazine, sodium benzoate, water"></textarea>
+      <div id="scan-status" class="mute" role="status" hidden></div>
+      <div class="controls">
+        <fieldset class="seg" aria-label="Markets">
+          <legend class="sr">Markets</legend>
+          <label><input type="checkbox" name="mk" value="EU" checked><span>European Union</span></label>
+          <label><input type="checkbox" name="mk" value="US" checked><span>United States</span></label>
+        </fieldset>
+        <button class="btn primary" id="go">Check compliance</button>
+      </div>
+      <div id="error" class="error" role="alert" hidden></div>
+    </div>
+    <div id="results" hidden></div>
+  </section>
+
+  <!-- Batch -->
+  <section id="tab-batch" class="tab" hidden>
+    <div class="card">
+      <h2>Batch check</h2>
+      <p class="mute">One product per line as <code>Product name | ingredients</code>, or upload a CSV with the name in column 1 and ingredients in column 2. Up to 50 products.</p>
+      <textarea id="batch-in" rows="7" spellcheck="false">Strawberry jelly | sugar, water, gelatin, citric acid, carmoisine (E122), sodium benzoate
+White loaf | wheat flour, water, yeast, salt, potassium bromate, ascorbic acid
+Cola | carbonated water, sugar, caramel colour IV, phosphoric acid, aspartame
+Plain crackers | wheat flour, vegetable oil, salt, tocopherols</textarea>
+      <div class="controls">
+        <fieldset class="seg" aria-label="Markets">
+          <legend class="sr">Markets</legend>
+          <label><input type="checkbox" name="bmk" value="EU" checked><span>European Union</span></label>
+          <label><input type="checkbox" name="bmk" value="US" checked><span>United States</span></label>
+        </fieldset>
+        <label class="btn ghost" for="csv-file">Upload CSV</label>
+        <input id="csv-file" type="file" accept=".csv,text/csv,.txt" hidden>
+        <button class="btn primary" id="batch-go">Run batch</button>
+      </div>
+      <div id="batch-error" class="error" role="alert" hidden></div>
+    </div>
+    <div id="batch-out" hidden></div>
+  </section>
+
+  <!-- Assistant -->
+  <section id="tab-assistant" class="tab" hidden>
+    <div class="card chat">
+      <h2>Regulatory assistant</h2>
+      <p class="mute">Answers come from the ingredient database. Name an additive or E-number.</p>
+      <div id="chat-log" class="log" aria-live="polite"></div>
+      <div class="chips" id="suggest"></div>
+      <form id="chat-form" class="chat-form">
+        <input id="chat-in" type="text" maxlength="500" autocomplete="off" placeholder="Is titanium dioxide allowed in the EU?" aria-label="Your question">
+        <button class="btn primary" type="submit">Ask</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- Database -->
+  <section id="tab-database" class="tab" hidden>
+    <div class="card">
+      <div class="field-head">
+        <h2>Ingredient database <small id="db-count"></small></h2>
+        <input id="db-q" type="search" placeholder="Search name, alias, E-number or category" aria-label="Search ingredients">
+      </div>
+      <div class="table-wrap"><table id="db-table"><thead><tr><th>Ingredient</th><th>Category</th><th>EU</th><th>US</th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- Dashboard -->
+  <section id="tab-dashboard" class="tab" hidden>
+    <div id="tiles" class="tiles"></div>
+    <div class="grid2">
+      <div class="card"><h2>Checks, last 14 days</h2><div id="chart" class="chart"></div></div>
+      <div class="card"><h2>Outcomes by market</h2><div id="outcomes"></div></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><h2>Most flagged additives</h2><ol id="top" class="toplist"></ol></div>
+      <div class="card"><h2>Recent anonymous checks</h2><div class="table-wrap"><table id="recent"><thead><tr><th>When (UTC)</th><th>Market</th><th>Verdict</th><th>Items</th></tr></thead><tbody></tbody></table></div></div>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap foot">
+  <p>Demonstration dataset for illustration. It is not legal or regulatory advice; verify every decision against official EU and FDA sources. Statistics store counts only; ingredient text is stored only if you choose to save and share a report.</p>
+  <p>Built on Cloudflare Workers, D1 (SQLite) and Workers AI. <a href="https://github.com/shahed1475/Inno-AI" target="_blank" rel="noopener">Source on GitHub</a>.</p>
+</footer>
+<script src="/app.js" defer></script>
+</body>
+</html>

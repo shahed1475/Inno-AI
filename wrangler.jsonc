@@ -1,14 +1,22 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "inno-ai",
-  "main": "index.ts",
+  "main": "src/index.ts",
   "compatibility_date": "2026-11-01",
   "observability": { "enabled": true },
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "ai": { "binding": "AI" },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "inno-ai-db",
-      "database_id": "97754f09-a4c6-4d62-b566-16788ab5afce"
+      "database_id": "97754f09-a4c6-4d62-b566-16788ab5afce",
+      "migrations_dir": "migrations"
     }
   ]
 }
