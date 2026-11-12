@@ -166,7 +166,7 @@ async function assistant(req: Request, env: Env): Promise<Response> {
   const fallback = hits.length
     ? hits.map(describe).join("\n\n")
     : `I could not match that to an ingredient in the dataset (${entries.length} additives). Try naming an additive or E-number, for example "Is titanium dioxide allowed in the EU?"`;
-  if (!hits.length || !env.AI) return json({ answer: fallback, sources, mode: "retrieval" });
+  if (!hits.length || !env.AI) return json({ answer: fallback, sources, mode: "retrieval", note: env.AI ? undefined : "AI binding not configured" });
   try {
     const out = (await env.AI.run(MODEL, {
       messages: [
@@ -184,6 +184,7 @@ async function assistant(req: Request, env: Env): Promise<Response> {
     if (answer) return json({ answer, sources, mode: "ai", model: MODEL });
   } catch (err) {
     console.error("Workers AI failed", err);
+    return json({ answer: fallback, sources, mode: "retrieval", note: "AI unavailable: " + String(err).slice(0, 160) });
   }
   return json({ answer: fallback, sources, mode: "retrieval" });
 }
