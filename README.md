@@ -15,7 +15,7 @@ Check food ingredient lists against **EU and US additive rules**, scan labels, g
 | Label scanner | Upload a photo of a label; text is read in your browser with Tesseract.js (the image never leaves your device), then you review it and check. |
 | Substitution engine | Restricted or banned additives list vetted alternatives. |
 | Batch mode | Paste `Product | ingredients` lines or upload a CSV, get a verdict per product, export CSV. |
-| Regulatory assistant | Retrieves matching rows from D1 and answers with Workers AI (Llama 3.1). Falls back to a plain database answer if AI is unavailable. |
+| Regulatory assistant | Retrieves matching rows from D1 and answers with Workers AI (Llama 3.1 8B). Falls back to a plain database answer if AI is unavailable. |
 | Shareable reports | Opt-in "Save and share link" stores one report behind an unguessable URL. |
 | Dashboard | Anonymous usage statistics and the most-flagged additives. |
 | Ingredient database | Searchable table of every additive, rule and alternative. |

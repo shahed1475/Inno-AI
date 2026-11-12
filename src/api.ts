@@ -139,7 +139,8 @@ async function listIngredients(url: URL, env: Env): Promise<Response> {
 }
 
 
-const MODEL = "@cf/meta/llama-3.1-8b-instruct";
+// Tried in order; Cloudflare retires models over time, so keep a fallback.
+const MODELS = ["@cf/meta/llama-3.1-8b-instruct-fp8", "@cf/meta/llama-3.2-3b-instruct"];
 
 function describe(e: Entry): string {
   const r = (m: Market) => (e.rules[m] ? `${e.rules[m]!.status} (${e.rules[m]!.note})` : "no data");
@@ -167,26 +168,27 @@ async function assistant(req: Request, env: Env): Promise<Response> {
     ? hits.map(describe).join("\n\n")
     : `I could not match that to an ingredient in the dataset (${entries.length} additives). Try naming an additive or E-number, for example "Is titanium dioxide allowed in the EU?"`;
   if (!hits.length || !env.AI) return json({ answer: fallback, sources, mode: "retrieval", note: env.AI ? undefined : "AI binding not configured" });
-  try {
-    const out = (await env.AI.run(MODEL, {
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a food regulatory assistant. Answer ONLY from the dataset excerpt below. If it does not contain the answer, say so. Be concise (under 120 words). Mention the market (EU or US) for every claim. End with: Demo data, not legal advice.\n\nDATASET:\n" +
-            context,
-        },
-        { role: "user", content: q },
-      ],
-      max_tokens: 300,
-    })) as { response?: string };
-    const answer = out.response?.trim();
-    if (answer) return json({ answer, sources, mode: "ai", model: MODEL });
-  } catch (err) {
-    console.error("Workers AI failed", err);
-    return json({ answer: fallback, sources, mode: "retrieval", note: "AI unavailable: " + String(err).slice(0, 160) });
+  const messages = [
+    {
+      role: "system",
+      content:
+        "You are a food regulatory assistant. Answer ONLY from the dataset excerpt below. If it does not contain the answer, say so. Be concise (under 120 words). Mention the market (EU or US) for every claim. End with: Demo data, not legal advice.\n\nDATASET:\n" +
+        context,
+    },
+    { role: "user", content: q },
+  ];
+  let lastErr = "";
+  for (const model of MODELS) {
+    try {
+      const out = (await env.AI.run(model as never, { messages, max_tokens: 300 } as never)) as { response?: string };
+      const answer = out.response?.trim();
+      if (answer) return json({ answer, sources, mode: "ai", model });
+    } catch (err) {
+      lastErr = String(err).slice(0, 160);
+      console.error("Workers AI failed", model, err);
+    }
   }
-  return json({ answer: fallback, sources, mode: "retrieval" });
+  return json({ answer: fallback, sources, mode: "retrieval", note: "AI unavailable: " + lastErr });
 }
 
 async function stats(env: Env): Promise<Response> {
