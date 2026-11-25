@@ -72,9 +72,14 @@ as `inno-ai.is-a.dev` only works on Pages.
 
 `functions/api/[[path]].ts` makes that possible without a second implementation:
 it calls the same `handleApi`, so both targets share one API and one test suite.
-`public/_routes.json` sends only `/api/*` to a Function and `public/_redirects`
-serves `index.html` for client-side routes such as `/r/<id>`, replacing the
-Worker's `assets.not_found_handling`.
+`public/_routes.json` sends only `/api/*` to a Function.
+
+One caveat if you deploy to Pages: saved reports live at the client-side route
+`/r/<id>`, which the Worker answers through `assets.not_found_handling`. Pages
+has no equivalent setting, and a `_redirects` rule cannot stand in for it,
+because Workers Static Assets rejects any rule targeting `/index.html` as an
+infinite loop (it strips `/index` and `.html` before matching). A Pages
+deployment therefore needs its own fallback for `/r/*` before share links work.
 
 Pages reads its build settings from the dashboard rather than `wrangler.jsonc`,
 which stays the Worker configuration:

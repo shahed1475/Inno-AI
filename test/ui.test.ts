@@ -71,10 +71,13 @@ test("the social preview image is declared with absolute URLs", () => {
   }
 });
 
-test("the SPA fallback is scoped to the one client-side route", () => {
-  const redirects = readFileSync(new URL("../public/_redirects", import.meta.url), "utf8");
-  const rules = redirects.split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#"));
-  assert.deepEqual(rules, ["/r/* /index.html 200"]);
-  // A catch-all to /index.html is rejected by Workers Static Assets as a loop.
-  assert.ok(!rules.some((r) => r.startsWith("/*")), "no catch-all rule");
+test("the SPA fallback comes from the Worker config, not a _redirects rule", () => {
+  // Workers Static Assets rejects any _redirects rule that targets /index.html:
+  // it strips `/index` and `.html` before matching, so the rule re-enters itself
+  // and the deploy fails with "Infinite loop detected in this rule".
+  assert.throws(() => readFileSync(new URL("../public/_redirects", import.meta.url)),
+    /ENOENT/, "public/_redirects must not ship; it breaks the Workers deploy");
+  const cfg = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
+  assert.match(cfg, /"not_found_handling":\s*"single-page-application"/,
+    "the Worker must keep SPA handling, which is what answers /r/<id>");
 });
