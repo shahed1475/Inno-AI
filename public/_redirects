@@ -1,1 +1,6 @@
-/* /index.html 200
+# Saved reports are a client-side route, so the SPA shell has to answer /r/<id>.
+# This is scoped to /r/* rather than /*: Workers Static Assets rejects a catch-all
+# to /index.html as an infinite loop, because it strips `.html` and `/index` and
+# re-enters the same rule. On the Worker, assets.not_found_handling already covers
+# this; the rule is what gives the Pages target the same behaviour.
+/r/* /index.html 200

@@ -70,3 +70,11 @@ test("the social preview image is declared with absolute URLs", () => {
     assert.match(node.getAttribute("content") ?? "", /^https:\/\/.+\/og\.png$/, sel + " must be absolute");
   }
 });
+
+test("the SPA fallback is scoped to the one client-side route", () => {
+  const redirects = readFileSync(new URL("../public/_redirects", import.meta.url), "utf8");
+  const rules = redirects.split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#"));
+  assert.deepEqual(rules, ["/r/* /index.html 200"]);
+  // A catch-all to /index.html is rejected by Workers Static Assets as a loop.
+  assert.ok(!rules.some((r) => r.startsWith("/*")), "no catch-all rule");
+});
