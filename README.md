@@ -31,7 +31,7 @@ src/matcher.ts     Pure parsing, matching and verdict logic (unit tested)
 src/db.ts          D1 access, auto-creates the schema and syncs the dataset
 src/data.ts        Demonstration dataset (bump DATASET_VERSION to re-sync)
 migrations/        SQL schema for `wrangler d1 migrations`
-test/              Node test runner tests
+test/              Node test runner tests (matcher logic + jsdom UI routing)
 ```
 
 D1 tables: `ingredients`, `rules`, `substitutes`, `checks`, `flag_counts`, `reports`, `meta`. Checks store **counts only**, never ingredient text. Ingredient text is stored only when you explicitly save a report.
@@ -53,7 +53,7 @@ D1 tables: `ingredients`, `rules`, `substitutes`, `checks`, `flag_counts`, `repo
 ```
 npm install
 npm run dev      # http://localhost:8787 with a local D1
-npm test         # matcher unit tests
+npm test         # matcher logic and frontend routing tests
 npm run typecheck
 ```
 

@@ -6,6 +6,20 @@
 <title>Inno-AI: Ingredient Compliance Platform</title>
 <meta name="description" content="Check food ingredient lists against EU and US additive rules, scan labels, get substitution ideas and ask a regulatory assistant. Runs on Cloudflare Workers and D1.">
 <meta name="theme-color" content="#111111">
+<link rel="canonical" href="https://inno-ai.abdullah-al-fahad.workers.dev/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Inno-AI">
+<meta property="og:title" content="Inno-AI: Ingredient Compliance Platform">
+<meta property="og:description" content="Check any ingredient list against EU and US additive rules in seconds. Label scanning, batch checks, substitution ideas and a regulatory assistant.">
+<meta property="og:url" content="https://inno-ai.abdullah-al-fahad.workers.dev/">
+<meta property="og:image" content="https://inno-ai.abdullah-al-fahad.workers.dev/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Inno-AI, ingredient compliance for the EU and US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Inno-AI: Ingredient Compliance Platform">
+<meta name="twitter:description" content="Check any ingredient list against EU and US additive rules in seconds.">
+<meta name="twitter:image" content="https://inno-ai.abdullah-al-fahad.workers.dev/og.png">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/styles.css">
 </head>
@@ -28,7 +42,7 @@
 </header>
 
 <main id="main" class="wrap">
-  <section class="hero" id="home">
+  <section class="hero" id="home" data-landing>
     <div>
       <h1>AI-Powered International Ingredient Compliance Platform</h1>
       <p>A comprehensive solution for real-time global ingredient compliance checks, automated product label scanning, and intelligent ingredient substitution recommendations.</p>
@@ -43,7 +57,7 @@
     </svg>
   </section>
 
-  <section id="features" class="features" aria-label="Features">
+  <section id="features" class="features" aria-label="Features" data-landing>
     <div class="feat"><h3>Real-time checks</h3><p>Verify every additive against EU and US rules instantly.</p></div>
     <div class="feat"><h3>Label scanner</h3><p>Photograph a label and extract the ingredient list.</p></div>
     <div class="feat"><h3>Smart substitutions</h3><p>Alternatives for restricted or banned ingredients.</p></div>
@@ -130,7 +144,7 @@ Plain crackers | wheat flour, vegetable oil, salt, tocopherols</textarea>
   <section id="tab-dashboard" class="tab" hidden>
     <div id="tiles" class="tiles"></div>
     <div class="grid2">
-      <div class="card"><h2>Checks, last 14 days</h2><div id="chart" class="chart"></div></div>
+      <div class="card"><h2>Checks, last 14 days</h2><div id="chart" class="chart" role="img" aria-label="Daily compliance checks over the last 14 days"></div><p id="chart-cap" class="mute cap"></p></div>
       <div class="card"><h2>Outcomes by market</h2><div id="outcomes"></div></div>
     </div>
     <div class="grid2">

@@ -40,6 +40,12 @@
     document.body.append(a); a.click(); a.remove();
   }
   const csvCell = (v) => '"' + String(v ?? "").replace(/"/g, '""') + '"';
+  // D1 returns UTC timestamps as "YYYY-MM-DD HH:MM:SS"; show them as readable UTC.
+  const WHEN = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC", hour12: false });
+  const DAY = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", timeZone: "UTC" });
+  const fmtWhen = (v) => { const d = new Date(String(v).replace(" ", "T") + "Z"); return isNaN(d.getTime()) ? String(v) : WHEN.format(d); };
+  const fmtDay = (iso) => { const d = new Date(iso + "T00:00:00Z"); return isNaN(d.getTime()) ? iso : DAY.format(d); };
+  const PILL_OF = { good: "approved", cond: "restricted", bad: "banned", rev: "unknown" };
   const toneOf = (v) => ({ "Compliant": "good", "Compliant with conditions": "cond", "Not compliant": "bad" }[v] || "rev");
 
   // ---------- tabs ----------
@@ -49,7 +55,14 @@
     let tab = location.hash.slice(1);
     if (!TABS.includes(tab)) tab = "checker";
     TABS.forEach((t) => show($("#tab-" + t), t === tab));
-    $$("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.tab === tab));
+    // The hero and feature strip introduce the product; they belong to the landing
+    // view only, so Dashboard and the other tools start at the top of the screen.
+    $$("[data-landing]").forEach((n) => show(n, tab === "checker"));
+    $$("#nav a").forEach((a) => {
+      const on = a.dataset.tab === tab;
+      a.classList.toggle("on", on);
+      if (on) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+    });
     if (tab === "database" && !loaded.db) { loaded.db = true; loadDb(""); }
     if (tab === "dashboard") loadDashboard();
     if (tab === "assistant" && !loaded.chat) { loaded.chat = true; initChat(); }
@@ -73,7 +86,7 @@
     const actions = el("div", { class: "actions" },
       el("button", { class: "btn sm", onclick: () => exportCsv(data) }, "Download CSV"),
       el("button", { class: "btn sm", onclick: () => window.print() }, "Print"),
-      data.report ? null : el("button", { class: "btn sm", id: "share-btn", onclick: shareReport }, "Save and share link"),
+      data.report ? null : el("button", { class: "btn sm", id: "share-btn", onclick: (e) => openSharePanel(e.currentTarget) }, "Save and share link"),
       el("label", { class: "chk" }, onlyFlagged, "Only show issues"));
     const tbody = el("tbody");
     const head = el("tr", {}, el("th", {}, "Ingredient"), ...markets.map((m) => el("th", {}, m)), el("th", {}, "Substitution ideas"));
@@ -96,7 +109,7 @@
     for (const r of data.results) rows.push([r.name, r.eNumber, r.category, ...data.markets.flatMap((m) => [r.rules[m].status, r.rules[m].note]), r.substitutes.join("; ")]);
     download("inno-ai-compliance.csv", rows.map((r) => r.map(csvCell).join(",")).join("\n"), "text/csv");
   }
-  async function runCheck(save) {
+  async function runCheck(save, title) {
     const markets = picked("mk");
     if (!markets.length) return showError("#error", "Pick at least one market.");
     const ingredients = $("#ing").value;
@@ -105,7 +118,7 @@
     const btn = $("#go"); btn.disabled = true; btn.textContent = "Checking…";
     try {
       const body = { ingredients, markets };
-      if (save) { body.save = true; body.title = (prompt("Name this report", "My product") || "").trim(); }
+      if (save) { body.save = true; body.title = title; }
       last = await api("/api/check", body);
       renderResults(last, $("#results"));
       if (last.report) {
@@ -117,11 +130,26 @@
     } catch (e) { showError("#error", e.message); }
     finally { btn.disabled = false; btn.textContent = "Check compliance"; }
   }
-  function shareReport() {
-    if (!confirm("This saves the ingredient list and results behind a private link anyone with the link can open. Continue?")) return;
-    runCheck(true);
+  // Saving is consented to in the panel itself: the wording is visible while the
+  // person names the report, rather than in a modal they dismiss before reading.
+  function openSharePanel(btn) {
+    const card = btn.closest(".card");
+    if ($("#share-panel", card)) return $("#share-name").focus();
+    const input = el("input", { type: "text", id: "share-name", value: "My product", maxlength: 80, "aria-label": "Report name" });
+    const save = () => { const t = input.value.trim(); if (!t) return input.focus(); panel.remove(); runCheck(true, t); };
+    const panel = el("div", { class: "share", id: "share-panel" },
+      el("p", {}, "This stores the ingredient list and its results behind an unguessable link that anyone holding the link can open. Nothing else is saved."),
+      el("div", { class: "share-row" }, input,
+        el("button", { class: "btn primary sm", onclick: save }, "Save and copy link"),
+        el("button", { class: "btn sm", onclick: () => panel.remove() }, "Cancel")));
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") save(); if (e.key === "Escape") panel.remove(); });
+    card.prepend(panel);
+    input.focus(); input.select();
   }
   $("#go").addEventListener("click", () => runCheck(false));
+  $$('.cta a[href="/#checker"]').forEach((a) => a.addEventListener("click", () => {
+    setTimeout(() => { $("#tab-checker").scrollIntoView({ behavior: "smooth", block: "start" }); $("#ing").focus(); }, 0);
+  }));
   $("#example").addEventListener("click", () => { $("#ing").value = EXAMPLES[exIdx++ % EXAMPLES.length]; });
 
   // ---------- label scanner (in-browser OCR) ----------
@@ -195,7 +223,7 @@
       for (const r of data.rows) {
         tbody.append(el("tr", {},
           el("td", {}, el("div", { class: "nm" }, r.name)),
-          ...data.markets.map((m) => el("td", {}, el("span", { class: "pill " + ({ good: "approved", cond: "restricted", bad: "banned", rev: "unknown" })[toneOf(r.summary[m].verdict)] }, r.summary[m].verdict))),
+          ...data.markets.map((m) => el("td", {}, el("span", { class: "pill v " + PILL_OF[toneOf(r.summary[m].verdict)] }, r.summary[m].verdict))),
           el("td", {}, r.flagged.length ? el("div", { class: "chips" }, r.flagged.map((f) => el("span", { class: "chip" }, f.name + (f.eNumber ? " " + f.eNumber : "")))) : el("span", { class: "mute" }, "None"))));
       }
       const csv = () => {
@@ -250,6 +278,10 @@
 
   // ---------- dashboard ----------
   async function loadDashboard() {
+    const tilesNode = $("#tiles");
+    if (!tilesNode.children.length) {
+      tilesNode.replaceChildren(...[0, 1, 2, 3].map(() => el("div", { class: "tile loading" }, el("b", {}, "\u2014"), el("span", {}, "loading\u2026"))));
+    }
     try {
       const d = await api("/api/stats");
       const t = d.totals;
@@ -261,7 +293,13 @@
       const days = [];
       for (let i = 13; i >= 0; i--) { const dt = new Date(Date.now() - i * 864e5).toISOString().slice(0, 10); days.push([dt, byDay[dt] || 0]); }
       const max = Math.max(1, ...days.map((x) => x[1]));
-      $("#chart").replaceChildren(...days.map(([dt, n]) => el("div", { class: "bar-col", title: dt + ": " + n }, el("i", { css: "height:" + Math.round((n / max) * 100) + "%" }), el("span", {}, dt.slice(8)))));
+      $("#chart").replaceChildren(...days.map(([dt, n]) => el("div", { class: "bar-col", title: fmtDay(dt) + ": " + n + (n === 1 ? " check" : " checks") },
+        el("i", { css: "height:" + Math.round((n / max) * 100) + "%" }), el("span", {}, dt.slice(8)))));
+      const total14 = days.reduce((a, b) => a + b[1], 0);
+      const peak = days.reduce((a, b) => (b[1] > a[1] ? b : a), days[0]);
+      $("#chart-cap").textContent = total14
+        ? total14 + (total14 === 1 ? " check" : " checks") + " in 14 days \u00b7 busiest day " + fmtDay(peak[0]) + " with " + peak[1]
+        : "No checks recorded in the last 14 days.";
       // outcomes
       const out = $("#outcomes"); out.replaceChildren();
       for (const m of ["EU", "US"]) {
@@ -273,7 +311,12 @@
       }
       out.append(el("div", { class: "legend" }, el("span", {}, "● compliant"), el("span", {}, "● conditions"), el("span", {}, "● not compliant"), el("span", {}, "● review")));
       const top = $("#top"); top.replaceChildren(...(d.topFlagged.length ? d.topFlagged.map((r) => el("li", {}, r.name + " ", pill(r.status), " " + r.market + " · " + r.n + "×")) : [el("li", { class: "empty" }, "Nothing flagged yet.")]));
-      $("#recent tbody").replaceChildren(...d.recent.map((r) => el("tr", {}, el("td", {}, r.created_at), el("td", {}, r.market), el("td", {}, r.verdict), el("td", {}, r.total + " (" + r.banned + " banned, " + r.restricted + " restricted)"))));
+      $("#recent tbody").replaceChildren(...(d.recent.length
+        ? d.recent.map((r) => el("tr", {},
+            el("td", {}, fmtWhen(r.created_at)), el("td", {}, r.market),
+            el("td", {}, el("span", { class: "pill v " + PILL_OF[toneOf(r.verdict)] }, r.verdict)),
+            el("td", {}, r.total + " (" + r.banned + " banned, " + r.restricted + " restricted)")))
+        : [el("tr", {}, el("td", { colspan: 4, class: "empty" }, "No checks recorded yet. Run one from the Checker tab."))]));
     } catch (e) { $("#tiles").replaceChildren(el("div", { class: "error" }, e.message)); }
   }
 

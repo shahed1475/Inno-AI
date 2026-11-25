@@ -53,6 +53,7 @@ th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);verti
 th{color:var(--mute);font-size:12px;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
 tr:last-child td{border-bottom:0}td .nm{font-weight:700}td .sub{color:var(--mute);font-size:12.5px}
 .pill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:800;text-transform:capitalize}
+.pill.v{text-transform:none}
 .pill.approved{background:var(--ok-bg);color:var(--ok)}.pill.restricted{background:var(--warn-bg);color:var(--warn)}.pill.banned{background:var(--bad-bg);color:var(--bad)}.pill.unknown{background:var(--unk-bg);color:var(--unk)}
 .note{display:block;color:var(--mute);font-size:12.5px;margin-top:3px;max-width:330px}
 .chips{display:flex;gap:6px;flex-wrap:wrap}.chip{background:var(--brand-t);color:var(--brand-d);border-radius:99px;padding:2px 10px;font-size:12.5px;font-weight:600;border:0;font-family:inherit}
@@ -78,3 +79,10 @@ button.chip{cursor:pointer}button.chip:hover{filter:brightness(.96)}
 a{color:var(--brand)}
 .empty{color:var(--mute);padding:14px 0}
 @media print{.top,.hero,.card:has(#ing),.actions,.foot{display:none!important}body{background:#fff;color:#000}}
+.share{background:var(--brand-t);border:1px solid var(--brand);border-radius:12px;padding:14px;margin-bottom:14px}
+.share p{margin:0 0 10px;color:var(--text);font-size:13.5px;max-width:62ch}
+.share-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.share-row input{max-width:260px;width:auto;flex:1 1 180px}
+.cap{font-size:12.5px;margin:10px 0 0}
+.tile.loading b,.tile.loading span{opacity:.4}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
