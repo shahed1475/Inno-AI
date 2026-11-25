@@ -2,7 +2,7 @@
 
 Check food ingredient lists against **EU and US additive rules**, scan labels, get **substitution ideas**, run **batch checks** and ask a **regulatory assistant**. It runs entirely on Cloudflare's free tier: one Worker, a **D1 (SQLite)** database and Workers AI. No external services, no API keys.
 
-**Live demo:** https://inno-ai.shahedalfahad19.workers.dev
+**Live demo:** https://inno-ai.abdullah-al-fahad.workers.dev
 
 > The bundled dataset is a demonstration set of 65 additives. It is not legal or regulatory advice; verify every decision against the official EU and FDA sources.
 
@@ -25,6 +25,7 @@ Check food ingredient lists against **EU and US additive rules**, scan labels, g
 ```
 public/            Static UI (HTML, CSS, vanilla JS) served by Workers Static Assets
 src/index.ts       Worker entry: /api/* to the API, everything else to assets
+functions/api/     Pages Functions entry (optional second target, same API)
 src/api.ts         Routes: check, batch, assistant, stats, ingredients, reports
 src/matcher.ts     Pure parsing, matching and verdict logic (unit tested)
 src/db.ts          D1 access, auto-creates the schema and syncs the dataset
@@ -62,6 +63,30 @@ npm run typecheck
 2. Run `npm run deploy`, or connect this repository in Cloudflare (Workers & Pages, Import a repository) so every push to `main` deploys.
 
 The Worker creates its tables on first request. To apply the schema explicitly instead, run `npm run db:migrate`.
+
+### Deploying to Pages instead, for a custom domain
+
+A Worker custom domain must be a zone inside the same Cloudflare account. A Pages
+project accepts a custom domain whose DNS is hosted elsewhere, so a free name such
+as `inno-ai.is-a.dev` only works on Pages.
+
+`functions/api/[[path]].ts` makes that possible without a second implementation:
+it calls the same `handleApi`, so both targets share one API and one test suite.
+`public/_routes.json` sends only `/api/*` to a Function and `public/_redirects`
+serves `index.html` for client-side routes such as `/r/<id>`, replacing the
+Worker's `assets.not_found_handling`.
+
+Pages reads its build settings from the dashboard rather than `wrangler.jsonc`,
+which stays the Worker configuration:
+
+1. Workers & Pages -> Create -> Pages -> Connect to Git, pick this repository.
+2. Build command: none. Build output directory: `public`.
+3. Settings -> Functions: bind D1 as `DB` (`inno-ai-db`) and Workers AI as `AI`.
+4. Custom domains -> Set up a domain **before** creating the DNS record, then add
+   an unproxied `CNAME` to `<project>.pages.dev`. The other order returns 522 to
+   every visitor, and a proxied record returns Error 1014.
+
+`npm run pages:build` compiles the Function locally to check it still bundles.
 
 ## Extending the dataset
 

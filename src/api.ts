@@ -4,7 +4,8 @@ import { evaluate, norm, parseList, type Entry, type IngredientResult } from "./
 
 export interface Env {
   DB: D1Database;
-  ASSETS: Fetcher;
+  /** Worker-only: Pages serves ./public itself. */
+  ASSETS?: Fetcher;
   AI?: Ai;
 }
 
