@@ -1,6 +1,9 @@
 :root{color-scheme:dark;--bg:#111111;--card:#1a1a1a;--line:#2c2c2c;--text:#f3f3f3;--mute:#a1a1a1;--brand:#e11d2e;--brand-d:#f43f4f;--brand-t:#2a1417;--accent:#f97316;
 --ok:#4ade80;--ok-bg:#112a1b;--warn:#fbbf24;--warn-bg:#32270c;--bad:#f87171;--bad-bg:#3a1517;--unk:#b4bcc6;--unk-bg:#242a31;--shadow:none}
 *{box-sizing:border-box}html{scroll-behavior:smooth}
+/* .hero and .features set display:grid, which outranks the user-agent
+   [hidden]{display:none} rule, so hiding them needs this to win. */
+[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
 .wrap{max-width:1040px;margin:0 auto;padding:0 20px}
 .skip{position:absolute;left:-999px}.skip:focus{left:12px;top:12px;background:var(--card);padding:8px 12px;z-index:9}

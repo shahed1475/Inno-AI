@@ -81,3 +81,12 @@ test("the SPA fallback comes from the Worker config, not a _redirects rule", () 
   assert.match(cfg, /"not_found_handling":\s*"single-page-application"/,
     "the Worker must keep SPA handling, which is what answers /r/<id>");
 });
+
+test("hiding a section actually hides it in a browser", () => {
+  // The hidden attribute is only a UA rule, display:none, and any element with
+  // its own display declaration outranks it. .hero and .features are grids, so
+  // without this the routing sets hidden and the browser keeps painting them.
+  const css = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
+  assert.match(css, /\[hidden\]\{display:none!important\}/,
+    "styles.css must force [hidden] to win over the display rules on .hero/.features");
+});
