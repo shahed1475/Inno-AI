@@ -253,3 +253,27 @@ export async function importChunk(
   }
   return { ok: res.ok || ranged, status: res.status, ranged, offset, nextOffset: offset + consumed, done, lines, rows: rows.length, bad, written };
 }
+
+/**
+ * Tries one variant of the SANTE endpoint and reports just enough to tell
+ * whether it paged. Host and path prefix are fixed here rather than taken from
+ * the caller, so this cannot be turned into an open proxy.
+ */
+export async function tryVariant(path: string, query: string): Promise<Record<string, unknown>> {
+  const safePath = /^[a-z0-9/_-]{0,64}$/i.test(path) ? path : "download";
+  const safeQuery = query.replace(/[^a-z0-9=&$_.,-]/gi, "").slice(0, 200);
+  const url = `https://api.datalake.sante.service.ec.europa.eu/food-additives/${safePath}?api-version=v2.0&${safeQuery}`;
+  try {
+    const res = await fetch(url, { headers: { accept: "application/json" } });
+    const reader = res.body?.getReader();
+    const first = reader ? (await reader.read()).value : undefined;
+    if (reader) await reader.cancel().catch(() => {});
+    const head = first ? new TextDecoder().decode(first.subarray(0, 600)) : "";
+    let firstCode: string | null = null;
+    const m = head.match(/"policy_item_code"\s*:\s*"([^"]+)"/);
+    if (m) firstCode = m[1];
+    return { q: safeQuery || "(none)", path: safePath, status: res.status, type: res.headers.get("content-type"), firstCode, head: head.slice(0, 120) };
+  } catch (e) {
+    return { q: safeQuery || "(none)", path: safePath, error: String(e).slice(0, 120) };
+  }
+}
