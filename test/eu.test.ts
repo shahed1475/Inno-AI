@@ -78,3 +78,23 @@ test("the hash is stable and hex", () => {
   assert.equal(fnv1a("abc"), fnv1a("abc"));
   assert.match(fnv1a("abc"), /^[0-9a-f]{8}$/);
 });
+
+import { toNumber } from "../src/import/eu.ts";
+
+test("maximum levels arrive as strings and must still become numbers", () => {
+  assert.equal(toNumber("100"), 100);
+  assert.equal(toNumber("2.5"), 2.5);
+  assert.equal(toNumber("1 000"), 1000, "spaces are thousands separators here");
+  assert.equal(toNumber("0,5"), 0.5, "a decimal comma is still a number");
+  assert.equal(toNumber(150), 150);
+});
+
+test("a value that is not a number stays null rather than becoming zero", () => {
+  for (const v of ["", "   ", "see note", null, undefined, {}]) assert.equal(toNumber(v), null);
+});
+
+test("an ML record keeps its limit and unit", () => {
+  const row = toRow({ ...SAMPLE, restriction_type: "ML", restriction_value: "200", restriction_unit: "mg/kg" })!;
+  assert.equal(row.restriction_value, 200);
+  assert.equal(row.restriction_unit, "mg/kg");
+});
