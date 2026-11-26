@@ -237,17 +237,37 @@ export async function measure(format: "json" | "csv" = "json"): Promise<Record<s
 export interface Coverage {
   rules: number; additives: number; categories: number;
   withNumericLimit: number; quantumSatis: number; newestRule: string | null;
+  types: { type: string | null; n: number }[];
 }
+
+/**
+ * Dates arrive as DD/MM/YYYY, which sorts wrongly as text: "31/12/2013" beats
+ * "01/01/2024". The rearrangement below sorts them correctly without needing a
+ * second column or a re-import.
+ */
+const AS_ISO = "substr(application_date,7,4) || substr(application_date,4,2) || substr(application_date,1,2)";
 
 /** What the imported Union list actually covers. Public: it is the headline number. */
 export async function euCoverage(db: D1Database): Promise<Coverage> {
-  const r = await db
+  const row = await db
     .prepare(
       "SELECT COUNT(*) AS rules, COUNT(DISTINCT name_norm) AS additives, COUNT(DISTINCT food_category_level) AS categories," +
         " SUM(CASE WHEN restriction_value IS NOT NULL THEN 1 ELSE 0 END) AS withNumericLimit," +
         " SUM(CASE WHEN restriction_type = 'quantum satis' THEN 1 ELSE 0 END) AS quantumSatis," +
-        " MAX(application_date) AS newestRule FROM eu_rules",
+        ` MAX(CASE WHEN length(application_date) = 10 THEN ${AS_ISO} END) AS newestRule FROM eu_rules`,
     )
-    .first<Coverage>();
-  return r ?? { rules: 0, additives: 0, categories: 0, withNumericLimit: 0, quantumSatis: 0, newestRule: null };
+    .first<Omit<Coverage, "types">>();
+  const types = await db
+    .prepare("SELECT restriction_type AS type, COUNT(*) AS n FROM eu_rules GROUP BY restriction_type ORDER BY n DESC LIMIT 8")
+    .all<{ type: string | null; n: number }>();
+  const iso = row?.newestRule ?? null;
+  return {
+    rules: row?.rules ?? 0,
+    additives: row?.additives ?? 0,
+    categories: row?.categories ?? 0,
+    withNumericLimit: row?.withNumericLimit ?? 0,
+    quantumSatis: row?.quantumSatis ?? 0,
+    newestRule: iso && iso.length === 8 ? `${iso.slice(0, 4)}-${iso.slice(4, 6)}-${iso.slice(6)}` : null,
+    types: types.results ?? [],
+  };
 }
