@@ -1,10 +1,12 @@
 import { MARKETS, type Market } from "./data.ts";
 import { ensureSchema, loadEntries } from "./db.ts";
 import { evaluate, norm, parseList, type Entry, type IngredientResult } from "./matcher.ts";
-import { importChunk, measure, probeEu, tryVariant } from "./import/eu.ts";
+import { euCoverage, importChunk } from "./import/eu.ts";
 
 export interface Env {
   DB: D1Database;
+  /** Set as a secret to re-open the EU import. Absent means writes are refused. */
+  IMPORT_TOKEN?: string;
   /** Worker-only: Pages serves ./public itself. */
   ASSETS?: Fetcher;
   AI?: Ai;
@@ -233,18 +235,16 @@ export async function handleApi(req: Request, env: Env, url: URL): Promise<Respo
     }
     if (p === "/api/ingredients" && req.method === "GET") return await listIngredients(url, env);
     if (p === "/api/stats" && req.method === "GET") return await stats(env);
-    // Read-only: reports what the EU open-data download actually contains.
-    // Temporary, and it writes nothing; remove once the importer is built.
-    if (p === "/api/admin/eu-probe" && req.method === "GET") return json(await probeEu());
-    if (p === "/api/admin/eu-size" && req.method === "GET") {
-      return json(await measure(url.searchParams.get("format") === "csv" ? "csv" : "json"));
-    }
-    if (p === "/api/admin/eu-try" && req.method === "GET") {
-      return json(await tryVariant(url.searchParams.get("path") ?? "download", url.searchParams.get("q") ?? ""));
-    }
+    if (p === "/api/eu-coverage" && req.method === "GET") return json(await euCoverage(env.DB));
     if (p === "/api/admin/eu-import" && req.method === "GET") {
       const n = (k: string, d: number) => { const v = Number(url.searchParams.get(k)); return Number.isFinite(v) && v >= 0 ? v : d; };
-      return json(await importChunk(env.DB, { offset: n("offset", 0), bytes: n("bytes", 196608), apply: url.searchParams.get("apply") === "1" }));
+      const apply = url.searchParams.get("apply") === "1";
+      // Writing is refused unless IMPORT_TOKEN is configured and matches, so the
+      // endpoint that filled the table cannot be used by anyone else to refill it.
+      if (apply && (!env.IMPORT_TOKEN || url.searchParams.get("token") !== env.IMPORT_TOKEN)) {
+        return json({ error: "Import is closed. Set the IMPORT_TOKEN secret and pass it as token." }, 403);
+      }
+      return json(await importChunk(env.DB, { offset: n("offset", 0), bytes: n("bytes", 4000000), apply }));
     }
     if (p === "/api/check" && req.method === "POST") return await check(req, env);
     if (p === "/api/batch" && req.method === "POST") return await batch(req, env);
