@@ -287,3 +287,33 @@ export async function euCoverage(db: D1Database): Promise<Coverage> {
     types: types.results ?? [],
   };
 }
+
+/**
+ * One scheduled slice of the import.
+ *
+ * A cron trigger needs no secret and exposes no endpoint, which is why the
+ * backfill runs here rather than behind an admin route: the alternative was
+ * minting a token, and an import of public data does not justify a credential.
+ *
+ * Progress lives in `meta`, so a run that is cut short simply resumes. When the
+ * file is exhausted the done flag is set and later runs cost one read.
+ */
+export async function importStep(db: D1Database, windows = 3, bytes = 4_000_000): Promise<Record<string, unknown>> {
+  const state = await db.prepare("SELECT key, value FROM meta WHERE key IN ('eu_import_offset','eu_import_done')").all<{ key: string; value: string }>();
+  const by = Object.fromEntries((state.results ?? []).map((r) => [r.key, r.value]));
+  if (by.eu_import_done === "1") return { skipped: "already complete" };
+  let offset = Number(by.eu_import_offset ?? 0) || 0;
+  let written = 0, calls = 0, done = false;
+  for (let i = 0; i < windows; i++) {
+    const r = await importChunk(db, { offset, bytes, apply: true });
+    calls++;
+    written += r.written;
+    if (!r.ok) break;
+    if (r.done || r.nextOffset <= offset) { done = true; break; }
+    offset = r.nextOffset;
+  }
+  if (done) {
+    await db.prepare("INSERT INTO meta (key, value) VALUES ('eu_import_done','1') ON CONFLICT(key) DO UPDATE SET value='1'").run();
+  }
+  return { calls, written, offset, done };
+}
