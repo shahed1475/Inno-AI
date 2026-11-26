@@ -203,7 +203,12 @@ export async function importChunk(
   opts: { offset?: number; bytes?: number; apply?: boolean; url?: string } = {},
 ): Promise<ImportResult> {
   const offset = Math.max(0, opts.offset ?? 0);
-  const bytes = Math.min(Math.max(opts.bytes ?? 196_608, 4_096), 1_000_000);
+  // Measured against the live endpoint: a 1 MB window parsed 477 records well
+  // inside the CPU budget, so the cap is raised. The endpoint honours neither
+  // Range nor any paging parameter, so each call re-reads from the start and
+  // the run costs roughly (file size / window) x half the file in transfer.
+  // Fewer, larger windows is therefore strictly better.
+  const bytes = Math.min(Math.max(opts.bytes ?? 4_000_000, 4_096), 12_000_000);
   const url = opts.url ?? EU_DOWNLOAD;
   const res = await fetch(url, { headers: { accept: "application/json", range: `bytes=${offset}-${offset + bytes - 1}` } });
   if (res.status === 416) return { ok: true, status: 416, ranged: true, offset, nextOffset: offset, done: true, lines: 0, rows: 0, bad: 0, written: 0, note: "past end of file" };
