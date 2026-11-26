@@ -277,3 +277,23 @@ export async function tryVariant(path: string, query: string): Promise<Record<st
     return { q: safeQuery || "(none)", path: safePath, error: String(e).slice(0, 120) };
   }
 }
+
+/**
+ * Streams the whole file and counts bytes without decoding or parsing, which
+ * costs almost no CPU. The size decides whether a one-pass import is possible
+ * at all, and whether CSV is worth using instead of JSON.
+ */
+export async function measure(format: "json" | "csv" = "json"): Promise<Record<string, unknown>> {
+  const url = `https://api.datalake.sante.service.ec.europa.eu/food-additives/download?format=${format}&api-version=v2.0`;
+  const t0 = Date.now();
+  const res = await fetch(url, { headers: { accept: "*/*" } });
+  const reader = res.body?.getReader();
+  let bytes = 0, chunks = 0;
+  while (reader) {
+    const { done, value } = await reader.read();
+    if (done || !value) break;
+    bytes += value.length;
+    chunks++;
+  }
+  return { format, status: res.status, bytes, mb: +(bytes / 1048576).toFixed(2), chunks, seconds: Math.round((Date.now() - t0) / 1000) };
+}

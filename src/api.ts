@@ -1,7 +1,7 @@
 import { MARKETS, type Market } from "./data.ts";
 import { ensureSchema, loadEntries } from "./db.ts";
 import { evaluate, norm, parseList, type Entry, type IngredientResult } from "./matcher.ts";
-import { importChunk, probeEu, tryVariant } from "./import/eu.ts";
+import { importChunk, measure, probeEu, tryVariant } from "./import/eu.ts";
 
 export interface Env {
   DB: D1Database;
@@ -236,6 +236,9 @@ export async function handleApi(req: Request, env: Env, url: URL): Promise<Respo
     // Read-only: reports what the EU open-data download actually contains.
     // Temporary, and it writes nothing; remove once the importer is built.
     if (p === "/api/admin/eu-probe" && req.method === "GET") return json(await probeEu());
+    if (p === "/api/admin/eu-size" && req.method === "GET") {
+      return json(await measure(url.searchParams.get("format") === "csv" ? "csv" : "json"));
+    }
     if (p === "/api/admin/eu-try" && req.method === "GET") {
       return json(await tryVariant(url.searchParams.get("path") ?? "download", url.searchParams.get("q") ?? ""));
     }
