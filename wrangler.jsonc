@@ -10,6 +10,19 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
+  // Workers Builds runs `npx wrangler preview` on every non-production branch,
+  // and that command refuses a config without this block. Previews reuse the
+  // production database: the dataset is a public demonstration set and the
+  // statistics it writes are anonymous counts, never ingredient text.
+  "previews": {
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_name": "inno-ai-db",
+        "database_id": "97754f09-a4c6-4d62-b566-16788ab5afce"
+      }
+    ]
+  },
   "ai": { "binding": "AI" },
   "d1_databases": [
     {
