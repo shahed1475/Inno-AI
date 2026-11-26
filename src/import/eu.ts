@@ -34,7 +34,7 @@ export interface EuRecord {
   food_category_level?: string | null;
   food_category?: string | null;
   restriction_type?: string | null;
-  restriction_value?: number | null;
+  restriction_value?: number | string | null;
   restriction_unit?: string | null;
   restriction_comment?: string | null;
   legislation_short?: string | null;
@@ -69,6 +69,22 @@ const clean = (v: unknown): string | null => {
   return s === "" ? null : s;
 };
 
+
+/**
+ * The source sends maximum levels as strings, not JSON numbers: 7,760 rules of
+ * type "ML" imported with a null value because an earlier `typeof === "number"`
+ * check rejected every one of them. Accept both shapes, and keep rejecting
+ * anything that is not a finite number so a stray "see note" cannot become 0.
+ */
+export function toNumber(v: unknown): number | null {
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  if (typeof v === "string") {
+    const n = Number(v.replace(/\s/g, "").replace(",", "."));
+    return Number.isFinite(n) && v.trim() !== "" ? n : null;
+  }
+  return null;
+}
+
 /** Maps one source record onto a row. Pure, so it is tested without the network. */
 export function toRow(rec: EuRecord): EuRow | null {
   const name = clean(rec.additive_name);
@@ -88,7 +104,7 @@ export function toRow(rec: EuRecord): EuRow | null {
     food_category_level: clean(rec.food_category_level),
     food_category: clean(rec.food_category),
     restriction_type: clean(rec.restriction_type),
-    restriction_value: typeof rec.restriction_value === "number" ? rec.restriction_value : null,
+    restriction_value: toNumber(rec.restriction_value),
     restriction_unit: clean(rec.restriction_unit),
     restriction_comment: clean(rec.restriction_comment),
     legislation_short: clean(rec.legislation_short),
