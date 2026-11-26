@@ -14,75 +14,6 @@
 export const EU_DOWNLOAD =
   "https://api.datalake.sante.service.ec.europa.eu/food-additives/download?format=json&api-version=v2.0";
 
-export interface ProbeResult {
-  url: string;
-  ok: boolean;
-  status: number;
-  contentType: string | null;
-  contentLength: string | null;
-  bytesRead: number;
-  /** Distinct JSON keys seen in the prefix, in first-seen order. */
-  fields: string[];
-  /** Raw head of the body, so an unexpected shape or an error page is visible. */
-  head: string;
-}
-
-/**
- * Distinct object keys in a JSON fragment, in the order they first appear.
- * Works on a truncated document, which a whole-document parse cannot.
- */
-export function fieldNames(jsonFragment: string, limit = 60): string[] {
-  const seen: string[] = [];
-  for (const m of jsonFragment.matchAll(/"([^"\\]{1,64})"\s*:/g)) {
-    const key = m[1];
-    if (!seen.includes(key)) seen.push(key);
-    if (seen.length >= limit) break;
-  }
-  return seen;
-}
-
-/** Keys that would mean the download carries real regulatory detail, not just names. */
-export const SIGNAL_KEYS = ["category", "foodCategory", "maxLevel", "maximumLevel", "restriction", "condition", "legal", "annex", "eNumber", "e_number"];
-
-/** Which signal keys are present, case-insensitively, in a list of field names. */
-export function signals(fields: string[]): string[] {
-  const lower = fields.map((f) => f.toLowerCase());
-  return SIGNAL_KEYS.filter((s) => lower.some((f) => f.includes(s.toLowerCase())));
-}
-
-/**
- * Reads only the first `maxBytes` of the download. The full file may be large,
- * and a Worker request has little CPU and memory to spare; the head is enough
- * to learn the shape.
- */
-export async function probeEu(url: string = EU_DOWNLOAD, maxBytes = 40_000): Promise<ProbeResult> {
-  const res = await fetch(url, { headers: { accept: "application/json" } });
-  const chunks: Uint8Array[] = [];
-  let bytesRead = 0;
-  const reader = res.body?.getReader();
-  while (reader && bytesRead < maxBytes) {
-    const { done, value } = await reader.read();
-    if (done || !value) break;
-    chunks.push(value);
-    bytesRead += value.length;
-  }
-  if (reader) await reader.cancel().catch(() => {});
-  const merged = new Uint8Array(bytesRead);
-  let at = 0;
-  for (const c of chunks) { merged.set(c, at); at += c.length; }
-  const head = new TextDecoder().decode(merged);
-  return {
-    url,
-    ok: res.ok,
-    status: res.status,
-    contentType: res.headers.get("content-type"),
-    contentLength: res.headers.get("content-length"),
-    bytesRead,
-    fields: fieldNames(head),
-    head: head.slice(0, 4000),
-  };
-}
-
 /* ------------------------------------------------------------------ *
  * Import
  *
@@ -301,4 +232,22 @@ export async function measure(format: "json" | "csv" = "json"): Promise<Record<s
     chunks++;
   }
   return { format, status: res.status, bytes, mb: +(bytes / 1048576).toFixed(2), chunks, seconds: Math.round((Date.now() - t0) / 1000) };
+}
+
+export interface Coverage {
+  rules: number; additives: number; categories: number;
+  withNumericLimit: number; quantumSatis: number; newestRule: string | null;
+}
+
+/** What the imported Union list actually covers. Public: it is the headline number. */
+export async function euCoverage(db: D1Database): Promise<Coverage> {
+  const r = await db
+    .prepare(
+      "SELECT COUNT(*) AS rules, COUNT(DISTINCT name_norm) AS additives, COUNT(DISTINCT food_category_level) AS categories," +
+        " SUM(CASE WHEN restriction_value IS NOT NULL THEN 1 ELSE 0 END) AS withNumericLimit," +
+        " SUM(CASE WHEN restriction_type = 'quantum satis' THEN 1 ELSE 0 END) AS quantumSatis," +
+        " MAX(application_date) AS newestRule FROM eu_rules",
+    )
+    .first<Coverage>();
+  return r ?? { rules: 0, additives: 0, categories: 0, withNumericLimit: 0, quantumSatis: 0, newestRule: null };
 }
